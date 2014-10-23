@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Untitled Document</title>
+</head>
+<body>
+<h1>JSON</h1>
+<img />
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script> 
+<script>
+console.log('poop')
+$.getJSON("http://gateway.marvel.com:80/v1/public/characters?apikey=ccabafebcae95d38e7be1aef276cbf52", function(data) {
+    console.log('data'+data.data.results[0].thumbnail.path);
+    // data is a JavaScript object now. Handle it as such
+	theThumb = data.data.results[0].thumbnail.path+'.jpg'
+	console.log(theThumb)
+	$('img').attr('src', theThumb);
+
+});
+
+</script>
+</body>
+</html>

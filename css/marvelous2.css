@@ -1,0 +1,41 @@
+/* CSS Document */
+
+.skew {
+	display:block;
+	-webkit-transform:		skew(0,-3deg);
+	-moz-transform:    	skew(0,-3deg);
+	-ms-transform:     	skew(0,-3deg);
+	-o-transform:      	skew(0,-3deg);
+	transform:         	skew(0,-3deg);
+	-webkit-backface-visibility: hidden;
+	}
+.counter-skew {
+	display:block;
+	-webkit-transform:		skew(0,3deg);
+	-moz-transform:    	skew(0,3deg);
+	-ms-transform:     	skew(0,3deg);
+	-o-transform:      	skew(0,3deg);
+	transform:         	skew(0,3deg);
+	-webkit-backface-visibility: hidden;
+	}
+
+
+
+
+.event {}
+	.event a, 
+	.event span {
+		display:block;
+		}
+	.event a {}
+		.event .img {
+			overflow:hidden;
+			border:4px solid #000;
+			}
+			.event a:hover .img {
+				border-color:red;
+				}
+			
+			
+			.event img{}
+		.event .title {}

@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Marvelous</title>
+<meta name="HandheldFriendly" content="True">
+<meta name="MobileOptimized" content="320">
+<meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=0">
+<meta http-equiv="cleartype" content="on">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Marvelous">
+
+<link rel="apple-touch-icon-precomposed" sizes="144x144" href="img/144.png">
+<link rel="apple-touch-icon-precomposed" sizes="114x114" href="img/114.png">
+<link rel="apple-touch-icon-precomposed" sizes="72x72" href="img/72.png">
+<link rel="apple-touch-icon-precomposed" href="57.png">
+<link rel="shortcut icon" href="img/144.png">
+
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<script src="bootstrap/js/bootstrap.min.js"></script>
+
+<script>
+var allEventsCache = null;
+function getEvents(){
+	return $.ajax( {
+		url: "http://gateway.marvel.com/v1/public/events?orderBy=-startDate&limit=100&offset=0&apikey=ccabafebcae95d38e7be1aef276cbf52",
+		dataType: "json"
+	} ).then( function ( events ) {
+		//imgCounter = Math.min( get(events, 'data.results.length'), 100 );
+		////console.log('getEvents() imgCounter = '+imgCounter)
+		get( events, 'data.results').forEach(function (event) {
+			
+			event.trial = 'hello'
+			event.eventLink = get(event, 'urls.0.url')
+			allEventsCache = allEventsCache || {};
+			allEventsCache[event.id] = event;
+			$(tmpl('eventsEvent', {
+				thumbnail: get(event, 'thumbnail.path')+'.'+get(event, 'thumbnail.extension'),
+				id: get(event, 'id'),
+				title: get(event, 'title')
+			})).appendTo($('#events'));
+			
+		});
+		//$('.loading').remove();
+	} );
+	
+}
+
+function getEvent(num){
+	$.ajax( {
+		url: "http://gateway.marvel.com/v1/public/events/"+num+"/comics?&orderBy=onsaleDate&limit=100&offset=0&apikey=ccabafebcae95d38e7be1aef276cbf52",
+		dataType: "json"
+	} ).then( function ( comics ) {
+		var container = $('#eventDetail');
+		var eventData = allEventsCache[num];
+		var templateData = {
+				thumbnail: get(eventData, 'thumbnail.path')+'.'+get(eventData, 'thumbnail.extension'),
+				id: eventData.id,
+				title: eventData.title,
+				desc: eventData.description,
+				start: eventData.start,
+				end: eventData.end,
+				eventLink: eventData.eventLink 
+			};
+		$(tmpl('eventEvent', templateData)).appendTo(container);
+		imgCounter = Math.min( get(comics, 'data.results.length'), 100 ); 
+		//console.log('getEvent() imgCounter  = '+imgCounter)	
+		get(comics, 'data.results').forEach(function (comic) {
+			comic.coverImg = comic.thumbnail.path+'.'+comic.thumbnail.extension
+			comic.detailUrl = get(comic, 'urls.0.url')
+			comic.digitalPurchaseUrl = get(comic, 'urls.1.url')
+			comic.digitalPrice = get(comic, 'prices.0.price') || 'Not Available'
+			comic.printPrice =  get(comic, 'prices.1.price')
+			
+			var dateRaw = get(comic, 'dates.0.date');
+			$(tmpl('eventIssue', comic)).appendTo('#issues');
+			
+		}); 
+	} )
+	
+}
+function get( obj, path ) {
+	// replaces the need to do things like... if ( events && events.data && events.data.results) {
+    var parts = (path || '').split( '.' );
+    return parts.reduce( function ( next, prop ) {
+        return next && next[prop];
+    }, obj || {} );
+}
+
+/**/
+
+// A hash to store our routes:
+var routes = {};  
+var el = null;
+
+// The route registering function:
+function route (path, templateId, controller) {
+	routes[path] = {templateId: templateId, controller: controller};
+}
+
+function router () {
+	var url = location.hash.slice(1) || '/';
+	var split = url.split('?');
+	var page = split[0] || '';
+	var data = split[1] || '';
+	var dataObj = {};
+	if (data){
+		//id=&name=fun
+		data.split('&').reduce(function (obj, chunk) {
+			var split = chunk.split('=');
+			var propName = split[0];
+			var value = split[1] || null;
+			obj[propName] = value;
+			return obj;
+			}, dataObj);
+	}
+	el = el || document.getElementById('view');
+	var route = routes[page];
+	if (el && route.controller) {
+		el.innerHTML = tmpl(route.templateId, new route.controller(dataObj));
+	}
+ }
+
+
+
+
+
+
+
+
+
+
+
+// Simple JavaScript Templating
+// John Resig - http://ejohn.org/ - MIT Licensed
+(function(){
+  var cache = {};
+ 
+  this.tmpl = function tmpl(str, data){
+    // Figure out if we're getting a template, or if we need to
+    // load the template - and be sure to cache the result.
+    var fn = !/\W/.test(str) ?
+      cache[str] = cache[str] ||
+        tmpl(document.getElementById(str).innerHTML) :
+     
+      // Generate a reusable function that will serve as a template
+      // generator (and which will be cached).
+      new Function("obj",
+        "var p=[],print=function(){p.push.apply(p,arguments);};" +
+       
+        // Introduce the data as local variables using with(){}
+        "with(obj){p.push('" +
+       
+        // Convert the template into pure JavaScript
+        str
+          .replace(/[\r\t\n]/g, " ")
+          .split("<%").join("\t")
+          .replace(/((^|%>)[^\t]*)'/g, "$1\r")
+          .replace(/\t=(.*?)%>/g, "',$1,'")
+          .split("\t").join("');")
+          .split("%>").join("p.push('")
+          .split("\r").join("\\'")
+      + "');}return p.join('');");
+   
+    // Provide some basic currying to the user
+    return data ? fn( data ) : fn;
+  };
+})();
+
+imgCounter = 0
+
+function imgDone(){
+	//console.log('imgDone()')
+	//console.log('imgCounter'+imgCounter)
+	imgCounter -= 1 ;
+	if (imgCounter === 0) {
+		var width = $('.issue-img').width()
+		var height = width * 1.35
+		$('.issue-img').each(function(){
+			$(this).height(height)
+		})
+		$('#loading').hide();
+		//console.log('xx All imgDone()')		
+	}
+}
+
+route('/', 'home', function () {
+		$('#loading').hide();
+		getEvents();
+	});  
+route('/event', 'template1', function (data) {
+	$('#loading').show();
+	this.eventId = data.id;
+	////console.log( 'data'+data) ;
+	if (allEventsCache === null) {
+		getEvents().then(function () {
+			getEvent( data.id );
+		});
+	} else {
+		getEvent(data.id);
+	}
+
+});
+
+
+////console.log(routes)
+
+// run the router() function if the hash changes
+window.addEventListener('hashchange', router);  
+// run router() when page loads. 
+window.addEventListener('load', router);
+
+$('#loading').hide();
+
+</script>
+
+<!-- EVENTS -->
+
+<script type="text/html" id="home">  
+<div class="container">
+	<div id="events-bg"></div>
+	<div id="events" class="skew row"></div>
+</div>
+</script>
+	<script type="text/html" id="eventsEvent"> 
+		<a href="#/event?id=<%= id %>" class="col-sm-4 col-lg-3 event">
+			<span class="event-img">
+				<img src="<%= thumbnail %>"/>
+				<span class="event-title"><%= title %></span>
+			</span>
+		</a>
+	</script>
+
+
+
+
+<!-- EVENT -->
+
+<script type="text/html" id="template1">
+<div id="eventDetail"></div>
+</script>
+
+	<script type="text/html" id="eventEvent"> 
+	
+	<div id="event-top-bg"></div>
+	<div id="event-top">
+		<div class="container">
+			<div id="event-text" class="row">
+				<div class="col-sm-4 skew">
+					<img src="<%= thumbnail %>"/>
+				</div>
+				<div class="col-sm-8">
+					<h1><%= title %></h1>
+					<p><%= desc %></p>
+					<a href="<%= eventLink %>" class="btn slice"><span>Event Profile</span></a>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="container">
+		<div id="issues" class="row skew">
+		</div>
+	</div>
+	
+
+	</script>
+	
+		<script type="text/html" id="eventIssue"> 
+		<a href="<%= detailUrl %>" class="col-lg-2 col-sm-3 col-xs-6 issue">
+			<span class="issue-img">
+				<img onload="imgDone()" src="<%= coverImg %>"/>
+				<span class="details">
+					<span class="title"><%= title %></span>
+				</span>
+			</span>
+		</a>
+		</script>
+
+<!--
+		<div class="col-sm-12" trueYear="<%= trueYear  %>">
+		<img src="<%= coverImg %>"/>
+		<p><strong><%= title %></strong></p>
+		<p>Release Date: <%= saleDate %></p>
+		<p>Print: $<%= printPrice %></p>
+		<p>ISBN: <%= isbn %></p>
+		<p><a href="<%= digitalPurchaseUrl %>" class="btn btn-success">Digital: $<%= digitalPrice %></a></p>
+		<p>Description: <%= description %></p>
+<tr>
+			<td class="issues-img"><img src="<%= coverImg %>"/></td>
+			<td><a href="<%= detailUrl %>"><%= title %></a></td>
+			<td><a href="<%= digitalPurchaseUrl %>" class="btn btn-success">Digital: $<%= digitalPrice %></a></td>
+		</tr>
+-->
+
+
+<link href='http://fonts.googleapis.com/css?family=Montserrat:400,700' rel='stylesheet' type='text/css'>
+<link rel="stylesheet" href="bootstrap/css/bootstrap.min.css">
+<style type="text/css">
+body {
+	font-family: 'Montserrat', sans-serif;
+	background-color:black;
+	background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAH0lEQVQIW2P4//+/JhAzIGMUDhRrYgigq4QbgyEAwgChmkuDn1MilAAAAABJRU5ErkJggg==");	
+	}
+	
+img {max-width:100%;}
+
+#loading {
+	position:absolute;
+	left:0;
+	right:0;
+	top:0;
+	bottom:0;
+	text-align:center;
+	padding-top:300px;
+	background-color:#fff;
+	}
+	
+	
+
+.skew {
+	display:block;
+	-webkit-transform:		skew(0,-3deg);
+	-moz-transform:    	skew(0,-3deg);
+	-ms-transform:     	skew(0,-3deg);
+	-o-transform:      	skew(0,-3deg);
+	transform:         	skew(0,-3deg);
+	-webkit-backface-visibility: hidden;
+	}
+.counter-skew {
+	display:block;
+	-webkit-transform:		skew(0,3deg);
+	-moz-transform:    	skew(0,3deg);
+	-ms-transform:     	skew(0,3deg);
+	-o-transform:      	skew(0,3deg);
+	transform:         	skew(0,3deg);
+	-webkit-backface-visibility: hidden;
+	}
+
+#header {
+	position:relative;
+	z-index:2;
+	margin-bottom:-100px;
+	}
+	#header:after {
+		content:'';
+		display:block;
+		background-color:black;
+		height:70px;
+		width:100%;
+		position:absolute;
+		left:0;
+		top:0;
+		-webkit-transform:		skew(0,-3deg);
+		-moz-transform:    	skew(0,-3deg);
+		-ms-transform:     	skew(0,-3deg);
+		-o-transform:      	skew(0,-3deg);
+		transform:         	skew(0,-3deg);
+		-webkit-backface-visibility: hidden;
+		z-index:1;
+		}
+	
+	#header .container {
+		position:relative;
+		z-index:9999;
+		}
+	
+	#header-text {
+		height:70px;
+		width:50%;
+		background-color:#000;
+		z-index:9999;
+		font-family:"Montserrat", sans-serif;
+		}
+		#header-text:before {
+			content:'';
+			display:block;
+			width:1000px;
+			height:100px;
+			background-color:black;
+			position:absolute;
+			left:-985px;
+			top:0;
+			}
+			#header:before {
+				content:'';
+				background-image:url(../img/stripes.png);
+				background-repeat:repeat-x;
+				width:100%;
+				height:60px;
+				position:absolute;
+				top:0;
+				left:0;
+				}
+			
+			
+			
+			#logo {
+				width:216px;
+				height:140px;
+				position:absolute;
+				bottom:-60px;
+				padding:30px 0;
+				background: #880000;
+				
+				background: -moz-linear-gradient(top,  #880000 0%, #f0000e 100%);
+				
+				background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#880000), color-stop(100%,#f0000e));
+				
+				background: -webkit-linear-gradient(top,  #880000 0%,#f0000e 100%);
+				
+				background: -o-linear-gradient(top,  #880000 0%,#f0000e 100%);
+				
+				background: -ms-linear-gradient(top,  #880000 0%,#f0000e 100%);
+				
+				background: linear-gradient(to bottom,  #880000 0%,#f0000e 100%);
+				
+				filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#880000', endColorstr='#f0000e',GradientType=0 );
+
+
+
+
+				}
+				#logo h1 {
+					position:absolute;
+					bottom:60px;
+					left:0;
+					width:100%;
+					margin:0;
+					color:white;
+					text-align:center;
+					text-transform:uppercase;
+					font-size:28px;
+					
+					}
+					#logo h1 a {
+						color:white;
+						text-shadow: 0px 1px 1px rgba(0, 0, 0, .4);
+						transition:all .4s ease;
+						}
+						#logo h1 a:hover {
+							color:black;
+							text-shadow: 0px 1px 1px rgba(255, 255, 255, .4);
+							text-decoration:none;
+							}
+					
+			#tagline {
+				position:absolute;
+				left:250px;
+				top:40px;
+				width:16em;
+				}
+				#tagline p {
+					color:white;
+					opacity:.6;
+					text-transform:uppercase;
+					letter-spacing:1px;
+					font-size:70%;
+					}
+	
+#view {
+	position:relative;
+	}
+
+#events {
+	padding-top:220px;
+	}
+	.event{}
+		.event-img{
+			display:block;
+			position:relative;
+			overflow:hidden;
+			margin:20px;
+			border:6px solid #fff;
+			background-color:#fff;
+			margin-left:7px;
+			-moz-box-shadow:    -7px 7px 0 0 #f00;
+			-webkit-box-shadow: -7px 7px 0 0 #f00;
+			box-shadow:         -7px 7px 0 0 #f00;
+				transition:all .3s ease;
+			}
+			.event:hover .event-img {
+					background-color:#f0000e;
+					border-color:#f0000e;
+					-moz-box-shadow:    -7px 7px 0 0 #fff;
+					-webkit-box-shadow: -7px 7px 0 0 #fff;
+					box-shadow:         -7px 7px 0 0 #fff;
+					}
+			
+			
+			.event-img img {}
+			.event-title{
+				position:absolute;
+				bottom:-1px;
+				left:0;
+				width:101%;
+				background-color:white;
+				padding:3px;
+				color:#000;
+				transition:all .3s ease;
+				}
+				.event:hover .event-title {
+					background-color:#f0000e;
+					color:#fff;
+					}
+				
+	
+	
+	
+
+#eventDetail {
+	position:relative;
+	background-color:white;
+	margin-bottom:-50px;
+	}
+	#eventDetail:after {
+		content:'';
+		display:block;
+		position:relative;
+		bottom:-50px;
+		left:0;
+		height:100px;
+		width:100%;
+		background-color:white;
+		-webkit-transform:		skew(0,3deg);
+		-moz-transform:    	skew(0,3deg);
+		-ms-transform:     	skew(0,3deg);
+		-o-transform:      	skew(0,3deg);
+		transform:         	skew(0,3deg);
+		}
+	
+	
+	#event-top-bg {
+		content:'';
+		display:block;
+		width:100%;
+		height:450px;
+		background-color:black;
+		background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAH0lEQVQIW2P4//+/JhAzIGMUDhRrYgigq4QbgyEAwgChmkuDn1MilAAAAABJRU5ErkJggg==");
+		-webkit-transform:		skew(0,-3deg);
+		-moz-transform:    	skew(0,-3deg);
+		-ms-transform:     	skew(0,-3deg);
+		-o-transform:      	skew(0,-3deg);
+		transform:         	skew(0,-3deg);
+		-webkit-backface-visibility: hidden;
+		position:absolute;
+		left:0;
+		top:0;
+		}
+	
+	#event-top{
+		background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAH0lEQVQIW2P4//+/JhAzIGMUDhRrYgigq4QbgyEAwgChmkuDn1MilAAAAABJRU5ErkJggg==");
+		padding-top: 190px;
+		position:relative;
+		}
+
+	
+	#event-text {
+		}
+		#event-text img {
+			border:10px solid #670006;
+			}
+		#event-text h1 {
+			color:#fff;
+			}
+		#event-text p {
+			font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;
+			color: #fff;
+			opacity: .7;
+			font-size: 120%;
+			}
+	#eventDetail .container {
+		}
+	#issues {
+		padding:5px;
+		}
+		.issue {
+			position:relative;
+			padding:0;
+			}
+			.issue-img {
+				display:block;
+				position:relative;
+				overflow:hidden;
+				margin:20px;
+				border:6px solid #000;
+				background-color:#000;
+				margin-left:7px;
+				-moz-box-shadow:    -7px 7px 0 0 #ccc;
+				-webkit-box-shadow: -7px 7px 0 0 #ccc;
+				box-shadow:         -7px 7px 0 0 #ccc;
+					transition:all .3s ease;
+				}
+				.issue:hover .issue-img {
+					background-color:#f0000e;
+					border-color:#f0000e;
+					-moz-box-shadow:    -7px 7px 0 0 #000;
+					-webkit-box-shadow: -7px 7px 0 0 #000;
+					box-shadow:         -7px 7px 0 0 #000;
+					}
+	
+				.issue-img img {
+					position:relative;
+					-moz-box-shadow:    inset 0 0 0 10px #000000;
+					-webkit-box-shadow: inset 0 0 0 10px #000000;
+					box-shadow:         inset 0 0 0 10px #000000;
+					}
+				.issue .details {
+					position:absolute;
+					bottom:-1px;
+					padding:3px;
+					left:0;
+					width:101%;
+					white-space:nowrap;
+					overflow:hidden;
+					text-overflow:ellipsis;
+					background-color:black;
+					color:white;
+					transition:all .3s ease;
+					}
+					.issue:hover .details {
+						text-overflow:inherit;
+						white-space:normal;
+						background-color:white;
+						color:black;
+						}
+
+
+.btn {
+	border: 0;
+	cursor: pointer;
+	background: transparent;
+	padding: 0 7px;
+	position: relative;
+	margin: 10px 1px;
+	color: white;
+	text-transform: uppercase;
+	line-height: 47px;
+	vertical-align: middle;
+	font-size: 15px;
+	display: inline-block;
+	overflow: visible;
+	outline: 0;
+	
+	font-size: 14px;
+	height: 40px;
+	line-height: 40px;
+	position: relative;
+	text-shadow: 0px 1px 1px rgba(0, 0, 0, .4);
+	transition:all .4s ease;
+	
+	}
+
+	.btn:hover {
+		color:black;
+		text-shadow: 0px 1px 1px rgba(255, 255, 255, .4);
+		}
+	
+	.btn:before, .btn:after {
+		position: absolute;
+		top: 0;
+		content: "";
+		width: 11px;
+		height: 47px;
+		-webkit-transform: skew(-11deg,0deg);
+		-ms-transform: skew(-11deg,0deg);
+		transform: skew(-11deg,0deg);
+		background-color:red;
+		}
+	.btn:before {
+		left:2px;
+		}
+	
+	.btn:after {
+		right:2px;
+		}
+		
+		.btn span {
+			display:block;
+			padding:0 25px;
+			background-color:red;
+			webkit-box-sizing: border-box;
+			-moz-box-sizing: border-box;
+			box-sizing: border-box;
+			text-align: center;
+			white-space: nowrap;
+			height:47px;
+			line-height:47px;
+			}
+			
+			
+			
+
+
+
+#footer {
+	position:relative;
+	bottom:-100px;
+	color:#7F7F7F;
+	}
+	
+
+@media (max-width: 321px) {
+	#tagline {
+	left: 32px;
+	top: 80px;
+	}
+	#events {
+	padding-top: 150px;
+	}
+	#event-text h1 {
+	color: #000;
+	}
+	#event-text p {
+	color: #000;
+	}
+}	
+	
+	
+	
+</style>
+</head>
+<body>
+<header id="header">
+	<div class="container">
+		<div id="header-text">
+			<div id="logo" class="skew">
+				<h1 class="counter-skew"><a href="index.html">Marvelous</a></h1>
+			</div>
+			<div id="tagline">
+				<p>Your Guide to Marvel Crossover Events</p>
+			</div>
+		</div>
+	</div>
+</header>
+<div id="view">
+</div>
+<div id="footer">
+	<div class="container">
+		<p>&copy Marvel Entertainment. Built with the <a href="http://developer.marvel.com/">Marvel API</a>.</p>
+	</div>
+</div>
+<div id="loading">
+	<p>Loading...</p>
+	<div id="load1" class="load"></div>
+	<div id="load2" class="load"></div>
+	<div id="load3" class="load"></div>
+</div>
+
+</body>
+</html>

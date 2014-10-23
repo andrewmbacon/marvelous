@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Building a router</title>
+<h1>Router Test</h1>
+<ul>
+    <li><a href="#">Home</a></li>
+    <li><a href="#/page1">Page 1</a></li>
+    <li><a href="#/page2">Page 2</a></li>
+  </ul>
+  <div id="view"></div>
+<script>
+
+var routes = {};  
+var el = null;
+
+function route (path, templateId, controller) {
+	routes[path] = {templateId: templateId, controller: controller};
+}
+
+function router () {
+	el = el || document.getElementById('view');
+	var url = location.hash.slice(1) || '/';
+	var route = routes[url];
+	if (el && route.controller) {
+		el.innerHTML = tmpl(route.templateId, new route.controller());
+	}
+ 
+}
+// Simple JavaScript Templating
+// John Resig - http://ejohn.org/ - MIT Licensed
+(function(){
+  var cache = {};
+ 
+  this.tmpl = function tmpl(str, data){
+    // Figure out if we're getting a template, or if we need to
+    // load the template - and be sure to cache the result.
+    var fn = !/\W/.test(str) ?
+      cache[str] = cache[str] ||
+        tmpl(document.getElementById(str).innerHTML) :
+     
+      // Generate a reusable function that will serve as a template
+      // generator (and which will be cached).
+      new Function("obj",
+        "var p=[],print=function(){p.push.apply(p,arguments);};" +
+       
+        // Introduce the data as local variables using with(){}
+        "with(obj){p.push('" +
+       
+        // Convert the template into pure JavaScript
+        str
+          .replace(/[\r\t\n]/g, " ")
+          .split("<%").join("\t")
+          .replace(/((^|%>)[^\t]*)'/g, "$1\r")
+          .replace(/\t=(.*?)%>/g, "',$1,'")
+          .split("\t").join("');")
+          .split("%>").join("p.push('")
+          .split("\r").join("\\'")
+      + "');}return p.join('');");
+   
+    // Provide some basic currying to the user
+    return data ? fn( data ) : fn;
+  };
+})();
+
+
+// GO
+
+route('/', 'home', function () {});  
+route('/page1', 'template1', function () {  
+	this.greeting = 'Hello world!';
+	this.moreText = 'Bacon ipsum...';
+	this.poop = 'So much poop';
+});
+route('/page2', 'template2', function () {  
+	this.heading = 'I\'m page two!';
+});
+
+window.addEventListener('hashchange', router);  
+window.addEventListener('load', router);
+
+
+	
+</script>
+<script type="text/html" id="events">  
+	<h1>Router FTW!</h1>
+</script>
+<script type="text/html" id="event">  
+	<h1>Page 1: <%= greeting %></h1>
+	<p><%= moreText %></p>
+	<P><%= poop %></p>
+</script>
+<script type="text/html" id="publication">  
+	<h1>Page 2: <%= heading %></h1>
+	<p>Lorem ipsum...</p>
+</script>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script> 
+<script src="js/marvelous.js"></script>
+</head>
+<body>
+</body>
+</html>
